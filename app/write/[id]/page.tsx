@@ -13,6 +13,7 @@ export default function ComposerPage() {
   // Data State
   const [article, setArticle] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null) // NEW: Stores the full profile
   
   // Composer State
   const [mode, setMode] = useState<'letter' | 'phone'>('letter')
@@ -36,27 +37,46 @@ export default function ComposerPage() {
       }
       setUser(user)
 
-      const { data: articleData, error } = await supabase
+      // 1. Fetch the Article
+      const { data: articleData, error: articleError } = await supabase
         .from('articles')
         .select('*')
         .eq('id', params.id)
         .single()
       
-      if (error) {
+      if (articleError) {
         alert('Article not found')
         router.push('/')
       } else {
         setArticle(articleData)
       }
+
+      // 2. Fetch the User Profile (for Authenticity)
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      if (profileData) {
+        setUserProfile(profileData)
+      }
+
       setLoading(false)
     }
     loadData()
   }, [params.id, router, supabase])
 
-  // --- 1. GENERATE INITIAL DRAFT ---
+  // --- 1. GENERATE DRAFT ---
   const handleGenerate = async () => {
     setGenerating(true)
     
+    // Construct the "Authenticity Context"
+    // If they have badges (e.g. "Veteran"), we prepend it to their personal context
+    const badges = userProfile?.civic_roles || []
+    const badgeIntro = badges.length > 0 ? `I am a ${badges.join(', ')}. ` : ""
+    const fullPersonalContext = `${badgeIntro}${personalContext}`
+
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -66,10 +86,11 @@ export default function ComposerPage() {
           articleText: article.clean_text,
           sentiment,
           action,
-          personalContext,
+          personalContext: fullPersonalContext, // Use the combined context
           mode,
-          userName: user?.user_metadata?.full_name || "A Concerned Citizen",
-          userCity: "My City"
+          // Use real data from profile, fallback to defaults if missing
+          userName: userProfile?.full_name || "A Concerned Citizen",
+          userCity: userProfile?.address || "My District"
         })
       })
 
@@ -80,31 +101,25 @@ export default function ComposerPage() {
       } else {
         alert("Error generating letter: " + (data.error || "Unknown server error"))
       }
-
     } catch (err) {
-      console.error(err)
       alert("Network error. Please check your connection.")
     } finally {
       setGenerating(false)
     }
   }
 
-  // --- 2. NEW: HANDLE REFINEMENT ---
+  // --- 2. REFINE DRAFT ---
   const handleRefine = async () => {
-    if (!chatInput.trim()) return; // Don't send empty requests
+    if (!chatInput.trim()) return;
     setGenerating(true)
-
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // We send the existing letter so Gemini knows what to fix
           currentDraft: generatedContent,
           refinementInstructions: chatInput,
-          isRefinement: true, // Tell API this is an EDIT
-          
-          // We still send context just in case it needs to check facts
+          isRefinement: true,
           articleTitle: article.title,
           articleText: article.clean_text,
           mode
@@ -112,14 +127,12 @@ export default function ComposerPage() {
       })
 
       const data = await response.json()
-      
       if (data.success) {
         setGeneratedContent(data.letter)
-        setChatInput('') // Clear the input box
+        setChatInput('')
       } else {
         alert("Error refining letter: " + data.error)
       }
-
     } catch (err) {
       alert("Network error during refinement.")
     } finally {
@@ -127,12 +140,35 @@ export default function ComposerPage() {
     }
   }
 
+  // --- 3. SAVE TO HISTORY ---
+  const handleSave = async () => {
+    if (!generatedContent) return
+    
+    try {
+      const { error } = await supabase
+        .from('letters')
+        .insert({
+          user_id: user.id,
+          article_id: article.id,
+          content: generatedContent,
+          status: 'draft',
+          recipient: 'Sen. John Fetterman'
+        })
+
+      if (error) throw error
+      
+      router.push('/history')
+      
+    } catch (err: any) {
+      console.error(err)
+      alert("Error saving letter: " + err.message)
+    }
+  }
+
   if (loading) return <div className="p-12 text-center">Loading Workspace...</div>
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
-      
-      {/* HEADER */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div>
           <h1 className="font-bold text-lg truncate max-w-xl">{article?.title}</h1>
@@ -152,54 +188,24 @@ export default function ComposerPage() {
         
         {/* LEFT COLUMN */}
         <div className="p-6 border-r border-gray-200 bg-white overflow-y-auto h-[calc(100vh-80px)]">
-          
           <div className="flex bg-gray-100 p-1 rounded-lg mb-8">
-            <button 
-              onClick={() => setMode('letter')}
-              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
-                mode === 'letter' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              ✉️ Formal Letter
-            </button>
-            <button 
-              onClick={() => setMode('phone')}
-              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
-                mode === 'phone' ? 'bg-white shadow text-green-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              📞 Phone Script
-            </button>
+            <button onClick={() => setMode('letter')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${mode === 'letter' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>✉️ Formal Letter</button>
+            <button onClick={() => setMode('phone')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${mode === 'phone' ? 'bg-white shadow text-green-600' : 'text-gray-500 hover:text-gray-700'}`}>📞 Phone Script</button>
           </div>
 
           <div className="space-y-6">
-            
-            {/* SENTIMENT */}
             <div>
               <label className="block text-sm font-bold mb-3">Your Stance</label>
               <div className="grid grid-cols-3 gap-3">
                 {['😡 Angry', '😟 Concerned', '😃 Support'].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setSentiment(m)}
-                    className={`p-3 border rounded-lg text-sm ${
-                      sentiment === m ? 'border-blue-500 bg-blue-50 font-bold' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    {m}
-                  </button>
+                  <button key={m} onClick={() => setSentiment(m)} className={`p-3 border rounded-lg text-sm ${sentiment === m ? 'border-blue-500 bg-blue-50 font-bold' : 'hover:bg-gray-50'}`}>{m}</button>
                 ))}
               </div>
             </div>
 
-            {/* ACTION DROPDOWN */}
             <div>
               <label className="block text-sm font-bold mb-2">What should the Rep do?</label>
-              <select 
-                value={action}
-                onChange={(e) => setAction(e.target.value)}
-                className="w-full p-3 border rounded-lg bg-white text-sm"
-              >
+              <select value={action} onChange={(e) => setAction(e.target.value)} className="w-full p-3 border rounded-lg bg-white text-sm">
                 <option value="vote_no">Vote NO on this legislation</option>
                 <option value="vote_yes">Vote YES on this legislation</option>
                 <option value="statement">Make a public statement</option>
@@ -208,50 +214,23 @@ export default function ComposerPage() {
               </select>
             </div>
 
-            {/* PERSONAL CONTEXT */}
             <div>
-              <label className="block text-sm font-bold mb-2">
-                Why does this matter to you? <span className="text-gray-400 font-normal">(Optional)</span>
-              </label>
-              <textarea 
-                value={personalContext}
-                onChange={(e) => setPersonalContext(e.target.value)}
-                placeholder="e.g. As a small business owner..."
-                className="w-full p-3 border rounded-lg text-sm h-24 resize-none"
-              />
+              <label className="block text-sm font-bold mb-2">Why does this matter to you?</label>
+              <textarea value={personalContext} onChange={(e) => setPersonalContext(e.target.value)} placeholder="e.g. As a small business owner..." className="w-full p-3 border rounded-lg text-sm h-24 resize-none" />
             </div>
 
-            {/* GENERATE BUTTON */}
             {!generatedContent && (
-              <button 
-                onClick={handleGenerate}
-                disabled={generating}
-                className="w-full bg-gray-900 text-white py-4 rounded-lg font-bold hover:bg-black disabled:opacity-50"
-              >
+              <button onClick={handleGenerate} disabled={generating} className="w-full bg-gray-900 text-white py-4 rounded-lg font-bold hover:bg-black disabled:opacity-50">
                 {generating ? 'Thinking...' : 'Generate First Draft'}
               </button>
             )}
 
-            {/* CHAT INPUT (Now Wired Up!) */}
             {generatedContent && (
               <div className="mt-8 border-t pt-6">
                 <label className="block text-sm font-bold mb-2">Refine with AI</label>
                 <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="e.g. 'Make it shorter' or 'Mention inflation'"
-                    className="flex-1 p-3 border rounded-lg text-sm"
-                    onKeyDown={(e) => e.key === 'Enter' && handleRefine()} // Allow pressing Enter
-                  />
-                  <button 
-                    onClick={handleRefine}
-                    disabled={generating}
-                    className="bg-blue-100 text-blue-700 px-4 rounded-lg font-bold hover:bg-blue-200 disabled:opacity-50"
-                  >
-                    {generating ? '...' : 'Update'}
-                  </button>
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="e.g. 'Make it shorter'" className="flex-1 p-3 border rounded-lg text-sm" onKeyDown={(e) => e.key === 'Enter' && handleRefine()} />
+                  <button onClick={handleRefine} disabled={generating} className="bg-blue-100 text-blue-700 px-4 rounded-lg font-bold hover:bg-blue-200">{generating ? '...' : 'Update'}</button>
                 </div>
               </div>
             )}
@@ -267,27 +246,19 @@ export default function ComposerPage() {
                 <p>Your draft will appear here.</p>
               </div>
             ) : (
-              <textarea 
-                value={generatedContent}
-                onChange={(e) => setGeneratedContent(e.target.value)}
-                className="w-full h-full min-h-[500px] resize-none focus:outline-none font-serif text-lg leading-relaxed text-gray-800"
-              />
+              <textarea value={generatedContent} onChange={(e) => setGeneratedContent(e.target.value)} className="w-full h-full min-h-[500px] resize-none focus:outline-none font-serif text-lg leading-relaxed text-gray-800" />
             )}
           </div>
           
           {generatedContent && (
              <div className="max-w-2xl mx-auto mt-4 flex justify-end gap-3">
-               <button className="text-gray-500 hover:text-gray-800 font-medium text-sm">Save to History</button>
-               <button 
-                 onClick={() => navigator.clipboard.writeText(generatedContent)}
-                 className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-md"
-               >
+               <button onClick={handleSave} className="text-gray-500 hover:text-gray-800 font-medium text-sm">Save to History</button>
+               <button onClick={() => navigator.clipboard.writeText(generatedContent)} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-md">
                  Copy to Clipboard
                </button>
              </div>
           )}
         </div>
-
       </div>
     </main>
   )
