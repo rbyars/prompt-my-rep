@@ -74,7 +74,12 @@ export default async function Home() {
                       View Original Source &rarr;
                     </a>
                     <button className="w-full bg-gray-900 text-white py-2 rounded mt-auto hover:bg-gray-800">
-                      Write Letter
+                      <Link 
+                        href={`/write/${article.id}`} 
+                        className="w-full bg-gray-900 text-white py-2 rounded mt-auto hover:bg-gray-800 text-center block"
+                      >
+                        Write Letter
+                      </Link>
                     </button>
                   </div>
                 ))}
