@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
+import LandingPage from './components/LandingPage' // Import the new component
 
 export default async function Home() {
   const cookieStore = await cookies()
@@ -19,75 +20,74 @@ export default async function Home() {
   // 2. Check Auth
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 3. Fetch Articles (If logged in)
-  let articles: any[] = []
-  if (user) {
-    const { data } = await supabase
-      .from('articles')
-      .select('*')
-      .order('created_at', { ascending: false })
-    articles = data || []
+  // --- IF NOT LOGGED IN: SHOW LANDING PAGE ---
+  if (!user) {
+    return <LandingPage />
   }
 
+  // --- IF LOGGED IN: SHOW DASHBOARD ---
+  // 3. Fetch Articles
+  let articles: any[] = []
+  const { data } = await supabase
+    .from('articles')
+    .select('*')
+    .order('created_at', { ascending: false })
+  articles = data || []
+
   return (
-    <main className="flex min-h-screen flex-col items-center p-12 bg-gray-50 text-gray-900">
+    <div className="w-full max-w-5xl mx-auto">
       
-      {/* HEADER */}
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex mb-12">
-        <h1 className="text-4xl font-bold tracking-tight text-blue-900">Prompt My Rep™</h1>
-        <div className="flex gap-4">
-          {!user ? (
-            <Link href="/login" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              Log In
-            </Link>
-          ) : (
-            <span className="text-gray-500">Welcome back, Citizen.</span>
-          )}
+      {/* DASHBOARD HEADER */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Your Dashboard</h1>
+          <p className="text-gray-500">Manage your saved articles and drafts.</p>
         </div>
+        <Link href="/profile" className="text-sm text-blue-600 font-medium hover:underline">
+          My Profile &rarr;
+        </Link>
       </div>
 
-      {/* CONTENT AREA */}
-      <div className="w-full max-w-5xl">
-        {!user ? (
-          <div className="text-center py-20">
-            <h2 className="text-2xl font-semibold mb-4">Turn Rage into Action.</h2>
-            <p className="mb-8 text-gray-600">Download the extension to start saving articles.</p>
-            <Link href="/login" className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold">
-              Get Started
-            </Link>
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Your Saved Articles</h2>
-            
-            {articles.length === 0 ? (
-              <div className="p-10 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-500">
-                <p>No articles saved yet.</p>
-                <p className="text-sm mt-2">Use the Chrome Extension to save your first one!</p>
+      {/* ARTICLE GRID */}
+      {articles.length === 0 ? (
+        <div className="p-12 border-2 border-dashed border-gray-300 rounded-xl text-center bg-white">
+          <p className="text-4xl mb-4">📰</p>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">No articles saved yet</h3>
+          <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            Install the Chrome Extension to save news articles while you browse the web.
+          </p>
+          <button className="bg-gray-900 text-white px-6 py-2 rounded-lg font-bold text-sm">
+            Get Extension
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {articles.map((article) => (
+            <div key={article.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow flex flex-col h-full">
+              <div className="flex-1 mb-4">
+                <h3 className="font-bold text-lg mb-2 line-clamp-3 text-gray-900 leading-snug">
+                  {article.title}
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Source: {new URL(article.url).hostname}
+                </p>
               </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {articles.map((article) => (
-                  <div key={article.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                    <h3 className="font-bold text-lg mb-2 line-clamp-2">{article.title}</h3>
-                    <a href={article.url} target="_blank" className="text-blue-500 text-sm hover:underline block mb-4">
-                      View Original Source &rarr;
-                    </a>
-                    <button className="w-full bg-gray-900 text-white py-2 rounded mt-auto hover:bg-gray-800">
-                      <Link 
-                        href={`/write/${article.id}`} 
-                        className="w-full bg-gray-900 text-white py-2 rounded mt-auto hover:bg-gray-800 text-center block"
-                      >
-                        Write Letter
-                      </Link>
-                    </button>
-                  </div>
-                ))}
+              
+              <div className="mt-auto space-y-3">
+                <Link 
+                  href={`/write/${article.id}`} 
+                  className="block w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-center hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Write Letter
+                </Link>
+                <a href={article.url} target="_blank" className="block w-full text-center text-gray-400 text-xs hover:text-gray-600">
+                  View Original
+                </a>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-    </main>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

@@ -13,7 +13,7 @@ export default function ComposerPage() {
   // Data State
   const [article, setArticle] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
-  const [userProfile, setUserProfile] = useState<any>(null) // NEW: Stores the full profile
+  const [userProfile, setUserProfile] = useState<any>(null) // Stores full profile
   
   // Composer State
   const [mode, setMode] = useState<'letter' | 'phone'>('letter')
@@ -30,6 +30,7 @@ export default function ComposerPage() {
 
   useEffect(() => {
     async function loadData() {
+      // 1. Check Auth
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/login')
@@ -37,7 +38,7 @@ export default function ComposerPage() {
       }
       setUser(user)
 
-      // 1. Fetch the Article
+      // 2. Fetch Article
       const { data: articleData, error: articleError } = await supabase
         .from('articles')
         .select('*')
@@ -51,7 +52,7 @@ export default function ComposerPage() {
         setArticle(articleData)
       }
 
-      // 2. Fetch the User Profile (for Authenticity)
+      // 3. Fetch User Profile (Authenticity Data)
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -72,10 +73,13 @@ export default function ComposerPage() {
     setGenerating(true)
     
     // Construct the "Authenticity Context"
-    // If they have badges (e.g. "Veteran"), we prepend it to their personal context
     const badges = userProfile?.civic_roles || []
     const badgeIntro = badges.length > 0 ? `I am a ${badges.join(', ')}. ` : ""
-    const fullPersonalContext = `${badgeIntro}${personalContext}`
+    const voterStatus = userProfile?.is_registered_voter ? "I am a registered voter. " : ""
+    const jobInfo = userProfile?.job_title ? `I work as a ${userProfile.job_title}. ` : ""
+    
+    // Combine everything into one context string for the AI
+    const fullPersonalContext = `${voterStatus}${badgeIntro}${jobInfo}${personalContext}`
 
     try {
       const response = await fetch('/api/generate', {
@@ -86,9 +90,8 @@ export default function ComposerPage() {
           articleText: article.clean_text,
           sentiment,
           action,
-          personalContext: fullPersonalContext, // Use the combined context
+          personalContext: fullPersonalContext, 
           mode,
-          // Use real data from profile, fallback to defaults if missing
           userName: userProfile?.full_name || "A Concerned Citizen",
           userCity: userProfile?.address || "My District"
         })
@@ -102,6 +105,7 @@ export default function ComposerPage() {
         alert("Error generating letter: " + (data.error || "Unknown server error"))
       }
     } catch (err) {
+      console.error(err)
       alert("Network error. Please check your connection.")
     } finally {
       setGenerating(false)
@@ -169,6 +173,8 @@ export default function ComposerPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+      
+      {/* HEADER */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div>
           <h1 className="font-bold text-lg truncate max-w-xl">{article?.title}</h1>
@@ -188,12 +194,15 @@ export default function ComposerPage() {
         
         {/* LEFT COLUMN */}
         <div className="p-6 border-r border-gray-200 bg-white overflow-y-auto h-[calc(100vh-80px)]">
+          
           <div className="flex bg-gray-100 p-1 rounded-lg mb-8">
             <button onClick={() => setMode('letter')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${mode === 'letter' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>✉️ Formal Letter</button>
             <button onClick={() => setMode('phone')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${mode === 'phone' ? 'bg-white shadow text-green-600' : 'text-gray-500 hover:text-gray-700'}`}>📞 Phone Script</button>
           </div>
 
           <div className="space-y-6">
+            
+            {/* SENTIMENT */}
             <div>
               <label className="block text-sm font-bold mb-3">Your Stance</label>
               <div className="grid grid-cols-3 gap-3">
@@ -203,6 +212,7 @@ export default function ComposerPage() {
               </div>
             </div>
 
+            {/* ACTION DROPDOWN */}
             <div>
               <label className="block text-sm font-bold mb-2">What should the Rep do?</label>
               <select value={action} onChange={(e) => setAction(e.target.value)} className="w-full p-3 border rounded-lg bg-white text-sm">
@@ -214,17 +224,22 @@ export default function ComposerPage() {
               </select>
             </div>
 
+            {/* PERSONAL CONTEXT */}
             <div>
-              <label className="block text-sm font-bold mb-2">Why does this matter to you?</label>
+              <label className="block text-sm font-bold mb-2">
+                Why does this matter to you? <span className="text-gray-400 font-normal">(Optional)</span>
+              </label>
               <textarea value={personalContext} onChange={(e) => setPersonalContext(e.target.value)} placeholder="e.g. As a small business owner..." className="w-full p-3 border rounded-lg text-sm h-24 resize-none" />
             </div>
 
+            {/* GENERATE BUTTON */}
             {!generatedContent && (
               <button onClick={handleGenerate} disabled={generating} className="w-full bg-gray-900 text-white py-4 rounded-lg font-bold hover:bg-black disabled:opacity-50">
                 {generating ? 'Thinking...' : 'Generate First Draft'}
               </button>
             )}
 
+            {/* CHAT INPUT */}
             {generatedContent && (
               <div className="mt-8 border-t pt-6">
                 <label className="block text-sm font-bold mb-2">Refine with AI</label>
@@ -259,6 +274,7 @@ export default function ComposerPage() {
              </div>
           )}
         </div>
+
       </div>
     </main>
   )
