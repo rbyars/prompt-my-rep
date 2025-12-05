@@ -36,6 +36,7 @@ export default function Sidebar() {
             
             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
               <NavLink href="/" icon="🏠" label="Dashboard" active={pathname === '/'} />
+              <NavLink href="/reps" icon="🏛️" label="My Representatives" active={pathname === '/reps'} />
               <NavLink href="/history" icon="📂" label="Letter History" active={pathname === '/history'} />
               <NavLink href="/profile" icon="⚙️" label="Settings & Profile" active={pathname === '/profile'} />
             </nav>
