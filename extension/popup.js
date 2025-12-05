@@ -1,3 +1,7 @@
+// CONFIGURATION
+// Change this to 'http://localhost:3000' if you want to switch back to testing
+const APP_URL = 'https://prompt-my-rep.vercel.app'; 
+
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const statusDiv = document.getElementById('status');
   statusDiv.textContent = "Scanning article...";
@@ -27,25 +31,19 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     if (articleData) {
       statusDiv.textContent = "Authenticating...";
 
-      // --- DEBUGGING START ---
-      console.log("DEBUG: Starting cookie search...");
+      // --- COOKIE CHECK ---
+      // We now look for cookies on the LIVE URL
+      const cookies = await chrome.cookies.getAll({ url: APP_URL });
       
-      // Try searching by URL
-      const cookies = await chrome.cookies.getAll({ url: "http://localhost:3000" });
-      console.log("DEBUG: Found cookies:", cookies);
-
-      // Build the string
       const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-      console.log("DEBUG: Generated Cookie String:", cookieString);
-      // --- DEBUGGING END ---
 
       if (!cookieString) {
-        throw new Error("No login session found. (Cookie list was empty)");
+        throw new Error(`No login found. Please log in at ${APP_URL}`);
       }
 
-      statusDiv.textContent = "Sending to database...";
+      statusDiv.textContent = "Sending to cloud...";
 
-      const response = await fetch('http://localhost:3000/api/save-article', {
+      const response = await fetch(`${APP_URL}/api/save-article`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +72,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     }
 
   } catch (err) {
-    console.error("DEBUG ERROR:", err);
+    console.error(err);
     statusDiv.textContent = "Error: " + err.message;
     statusDiv.style.color = "red";
   }
