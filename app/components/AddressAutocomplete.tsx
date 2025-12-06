@@ -25,13 +25,12 @@ export default function AddressAutocomplete({ onSelect, defaultValue = '' }: Add
     }
   }, [])
 
-  // --- FIX: Sync internal state when parent data loads ---
+  // Sync internal state when parent data loads
   useEffect(() => {
     if (defaultValue) {
         setQuery(defaultValue)
     }
   }, [defaultValue])
-  // ------------------------------------------------------
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -48,11 +47,12 @@ export default function AddressAutocomplete({ onSelect, defaultValue = '' }: Add
     setQuery(value)
 
     if (value.length > 2) {
+      // FIX: Cast options to 'any' to bypass TypeScript strict check on 'country'
       Radar.autocomplete({
         query: value,
         limit: 5,
         country: 'US'
-      })
+      } as any)
       .then((result: any) => {
         if (result.addresses) {
           setSuggestions(result.addresses)
