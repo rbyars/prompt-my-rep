@@ -61,6 +61,9 @@ export default function Sidebar() {
                 <Link href="/profile" className="text-xs underline text-blue-600 mt-2 block">
                   Update Profile &rarr;
                 </Link>
+                <Link href="/privacy" className="text-xs text-gray-400 hover:text-gray-600 mt-4 block">
+                Privacy Policy
+                </Link>
               </div>
             </div>
           </aside>

@@ -5,9 +5,7 @@
   "description": "Save news articles to generate constituent letters.",
   "permissions": ["activeTab", "scripting", "cookies"],
   "host_permissions": [
-    "http://localhost:3000/*",
-    "https://prompt-my-rep.vercel.app/*",
-    "<all_urls>"
+    "https://prompt-my-rep.vercel.app/*"
   ],
   "action": {
     "default_popup": "popup.html"
