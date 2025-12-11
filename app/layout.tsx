@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <div className="flex min-h-screen bg-gray-50 text-gray-900">
           
           {/* THE NEW SMART SIDEBAR */}

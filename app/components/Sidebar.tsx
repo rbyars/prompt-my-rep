@@ -99,6 +99,9 @@ export default function Sidebar() {
               <Link href="/privacy" className="text-xs text-gray-400 hover:text-gray-600 block">
                 Privacy Policy
               </Link>
+              <Link href="/terms" className="text-xs text-gray-400 hover:text-gray-600 block">
+                Terms of Service
+              </Link>
               <Link href="/support" className="text-xs text-gray-400 hover:text-gray-600 block">
                 Help & Support
               </Link>
