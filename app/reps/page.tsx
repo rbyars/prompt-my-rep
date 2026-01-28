@@ -23,7 +23,7 @@ export default function MyRepsPage() {
         return
       }
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('user_reps')
         .select(`
           is_primary,
@@ -53,10 +53,8 @@ export default function MyRepsPage() {
   // --- HELPER: Get Dynamic Flag URL ---
   const getFlagBackground = (rep: any) => {
     if (rep.level === 'federal') {
-        // US Flag for Federal Reps
         return `url('https://flagcdn.com/w640/us.png')`;
     } else {
-        // State Flag for Local Reps (e.g., us-nc.png, us-ca.png)
         const stateCode = rep.state ? rep.state.toLowerCase() : '';
         return `url('https://flagcdn.com/w640/us-${stateCode}.png')`;
     }
@@ -98,18 +96,14 @@ export default function MyRepsPage() {
         {sortedReps.map((rep) => (
           <div key={rep.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
             
-            {/* Header / Flag Background */}
             <div 
                 className="h-32 relative bg-cover bg-center"
                 style={{ 
                     backgroundImage: getFlagBackground(rep),
-                    backgroundColor: '#f3f4f6' // Fallback color
+                    backgroundColor: '#f3f4f6'
                 }}
             >
-                {/* Dark Overlay to make the flag subtle/professional */}
                 <div className="absolute inset-0 bg-black/10"></div>
-
-                {/* Profile Photo */}
                 {rep.photo_url ? (
                     <img 
                         src={rep.photo_url} 
@@ -158,7 +152,11 @@ export default function MyRepsPage() {
                 </div>
 
                 <div className="mt-auto">
-                    <Link href="/" className="block w-full py-2 text-center border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm">
+                    {/* LINK UPDATED: Pass repId to Dashboard */}
+                    <Link 
+                        href={`/?repId=${rep.id}`} 
+                        className="block w-full py-2 text-center border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm"
+                    >
                         Draft Letter to Rep
                     </Link>
                 </div>

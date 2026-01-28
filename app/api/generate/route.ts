@@ -1,108 +1,107 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
-  console.log("--- API: Generate Request Started ---");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ success: false, error: "Server API Key missing" }, { status: 500 });
-  }
+export async function POST(request: Request) {
+  let prompt = ""; 
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
     const body = await request.json();
-    
     const { 
       articleTitle, 
       articleText, 
       sentiment, 
       action, 
-      personalContext, // This contains the badges like "I am a Veteran."
+      personalContext, 
       mode, 
       userName, 
       userCity,
-      isRefinement,
-      currentDraft,
-      refinementInstructions
+      recipientName,
+      recipientRole,
+      recipientLevel
     } = body;
 
-    // DEBUG LOGGING: Check if the badges are actually arriving
-    console.log("User Name:", userName);
-    console.log("Personal Context Received:", personalContext);
+    // PRIMARY: Gemini 2.5 Flash (Bleeding Edge Speed/Cost)
+    // If this specific version string isn't active for your account yet,
+    // the code will automatically catch the error and use 1.5 Flash below.
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Use 2.5 Pro for best results
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+    // Determine tone based on sentiment
+    let toneInstruction = "professional and firm";
+    if (sentiment === "concerned") toneInstruction = "worried and urgent";
+    if (sentiment === "support") toneInstruction = "enthusiastic and grateful";
+    if (sentiment === "angry") toneInstruction = "stern and disappointed";
 
-    let prompt = "";
-
-    // --- SCENARIO 1: REFINEMENT ---
-    if (isRefinement) {
-      console.log("Mode: Refinement");
-      prompt = `
-        Role: You are an expert editor.
-        Task: Rewrite the following constituent letter based on the user's instructions.
-        Original Draft: "${currentDraft}"
-        User's Instructions: "${refinementInstructions}"
-        Context: User is writing about "${articleTitle}".
-        Guidelines: Return ONLY the new letter text.
-      `;
-    } 
-    
-    // --- SCENARIO 2: NEW DRAFT ---
-    else {
-      console.log("Mode: New Draft");
-      
-      const identityBlock = `
-        User Identity: ${userName} from ${userCity}.
-        Personal Context/Badges: ${personalContext || "None provided"}
-      `;
-
-      if (mode === 'phone') {
+    // --- PROMPT ENGINEERING ---
+    if (mode === "phone") {
         prompt = `
-          Role: You are an expert political strategist writing a phone script.
-          Task: Write a 60-second phone script to call a Senator.
+          Task: Write a short phone script for a constituent calling ${recipientRole} ${recipientName}'s office (${recipientLevel}).
+          Topic: ${articleTitle}
           
-          ${identityBlock}
-          
-          Context: Calling about "${articleTitle}".
-          Article Details: ${articleText ? articleText.substring(0, 3000) : "No text provided"}.
-          Stance: ${sentiment}
-          Action Requested: ${action.replace('_', ' ')}
-          
-          CRITICAL INSTRUCTION: You MUST introduce the caller as "${userName}" from "${userCity}" immediately. If 'Personal Context' is provided (e.g. "I am a Veteran"), you must mention it in the first two sentences to establish credibility.
+          User Info:
+          Name: ${userName}
+          City: ${userCity}
+          Stance: ${toneInstruction}
+          Desired Action: ${action.replace('_', ' ')}
+          Personal Context: ${personalContext || "None"}
+
+          Source Text:
+          ${articleText.substring(0, 3000)}
+
+          Requirements:
+          - Start with "Hi, my name is ${userName} and I am a constituent from ${userCity}."
+          - Keep it under 45 seconds to read.
+          - Be clear about the specific action requested.
         `;
-      } else {
+    } else {
+        // Mode is "postal" or "email" -> Generate a formal letter body
         prompt = `
-          Role: You are an expert constituent advocate writing a formal letter.
-          Task: Write a persuasive letter to a Congressperson.
-
-          ${identityBlock}
-
-          Context: Writing about "${articleTitle}".
-          Article Details: ${articleText ? articleText.substring(0, 3000) : "No text provided"}.
-          Stance: ${sentiment}
-          Action Requested: ${action.replace('_', ' ')}
-
-          CRITICAL INSTRUCTION: You MUST sign the letter as "${userName}" from "${userCity}". You MUST weave the 'Personal Context' (e.g. "I am a Veteran") into the opening paragraph to establish the writer's standing in the community. Do not just list it; make it part of the argument.
+          Task: Write a formal constituent letter to ${recipientRole} ${recipientName} (${recipientLevel}).
+          Topic: ${articleTitle}
           
-          Guidelines: Professional business letter format. Respectful tone. Under 300 words.
+          User Info:
+          Name: ${userName}
+          City: ${userCity}
+          Stance: ${toneInstruction}
+          Desired Action: ${action.replace('_', ' ')}
+          Personal Context: ${personalContext || "None"}
+          
+          Source Text (Use this for facts):
+          ${articleText.substring(0, 4000)}
+
+          Requirements:
+          - Use a formal, respectful tone.
+          - CRITICAL: Address the letter to "The Honorable ${recipientName}".
+          - Clearly state the constituent's position and the specific action requested.
+          - Include specific facts from the source text to back up the argument.
+          - Sign off with "Sincerely, ${userName}".
+          - Do NOT include placeholders like [Date] or [Address] at the top, just start with the salutation.
         `;
-      }
     }
-
-    console.log("Sending prompt to Gemini...");
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    console.log("Gemini responded. Length:", text.length);
-
     return NextResponse.json({ success: true, letter: text });
 
   } catch (error: any) {
-    console.error("Gemini Error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Unknown Error" }, { status: 500 });
+    console.error("Gemini API Error:", error);
+    
+    // FALLBACK LOGIC
+    // If 2.5 Flash fails (404 Not Found), fallback to the reliable 1.5 Flash
+    if (error.message?.includes('404') || error.message?.includes('not found')) {
+        console.log("Gemini 2.5 not found. Retrying with gemini-1.5-flash...");
+        try {
+            const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const fallbackResult = await fallbackModel.generateContent(prompt); 
+            const fallbackResponse = await fallbackResult.response;
+            return NextResponse.json({ success: true, letter: fallbackResponse.text() });
+        } catch (fallbackError: any) {
+             return NextResponse.json({ success: false, error: `Primary (2.5) and Fallback (1.5) failed. Original error: ${error.message}` }, { status: 500 });
+        }
+    }
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

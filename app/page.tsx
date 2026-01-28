@@ -1,12 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
-import LandingPage from './components/LandingPage' // Import the new component
+import LandingPage from './components/LandingPage'
 
-export default async function Home() {
+// Accept searchParams prop
+export default async function Home(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParams = await props.searchParams;
+  const repId = searchParams?.repId; // Capture the repId if present
+
   const cookieStore = await cookies()
 
-  // 1. Initialize Supabase
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -17,16 +20,13 @@ export default async function Home() {
     }
   )
 
-  // 2. Check Auth
   const { data: { user } } = await supabase.auth.getUser()
 
-  // --- IF NOT LOGGED IN: SHOW LANDING PAGE ---
   if (!user) {
     return <LandingPage />
   }
 
-  // --- IF LOGGED IN: SHOW DASHBOARD ---
-  // 3. Fetch Articles
+  // Fetch Articles
   let articles: any[] = []
   const { data } = await supabase
     .from('articles')
@@ -37,11 +37,15 @@ export default async function Home() {
   return (
     <div className="w-full max-w-5xl mx-auto">
       
-      {/* DASHBOARD HEADER */}
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Your Dashboard</h1>
-          <p className="text-gray-500">Manage your saved articles and drafts.</p>
+          {repId ? (
+             <p className="text-blue-600 font-medium">Select an article to write about.</p>
+          ) : (
+             <p className="text-gray-500">Manage your saved articles and drafts.</p>
+          )}
         </div>
         <Link href="/profile" className="text-sm text-blue-600 font-medium hover:underline">
           My Profile &rarr;
@@ -74,8 +78,9 @@ export default async function Home() {
               </div>
               
               <div className="mt-auto space-y-3">
+                {/* LINK UPDATED: Pass repId forward if it exists */}
                 <Link 
-                  href={`/write/${article.id}`} 
+                  href={`/write/${article.id}${repId ? `?repId=${repId}` : ''}`} 
                   className="block w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-center hover:bg-blue-700 transition-colors text-sm"
                 >
                   Write Letter

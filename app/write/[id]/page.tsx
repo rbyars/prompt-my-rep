@@ -2,12 +2,13 @@
 
 import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation' // Added useSearchParams
 import Link from 'next/link'
 
 export default function ComposerPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams() // Catch the Query Param
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   
@@ -20,7 +21,7 @@ export default function ComposerPage() {
   const [reps, setReps] = useState<any[]>([])
   const [selectedRep, setSelectedRep] = useState<any>(null)
   
-  // Composer State: Updated to 3 modes
+  // Composer State
   const [mode, setMode] = useState<'postal' | 'email' | 'phone'>('postal')
   const [sentiment, setSentiment] = useState('concerned')
   const [action, setAction] = useState('vote_no')
@@ -87,15 +88,23 @@ export default function ComposerPage() {
         
         setReps(loadedReps)
         
-        // Default to Federal Rep if available, otherwise just the first one found
-        const federalRep = loadedReps.find((r: any) => r.level === 'federal')
-        setSelectedRep(federalRep || loadedReps[0])
+        // --- SMART SELECTION LOGIC ---
+        const targetRepId = searchParams.get('repId')
+        const targetRep = targetRepId ? loadedReps.find((r: any) => r.id === targetRepId) : null
+
+        if (targetRep) {
+            setSelectedRep(targetRep)
+        } else {
+            // Default to Federal Rep if no target provided
+            const federalRep = loadedReps.find((r: any) => r.level === 'federal')
+            setSelectedRep(federalRep || loadedReps[0])
+        }
       }
 
       setLoading(false)
     }
     loadData()
-  }, [params.id, router, supabase])
+  }, [params.id, router, supabase, searchParams]) // Add searchParams dependency
 
   // --- GENERATE DRAFT ---
   const handleGenerate = async () => {
@@ -123,10 +132,9 @@ export default function ComposerPage() {
           sentiment,
           action,
           personalContext: fullPersonalContext, 
-          mode, // Now sends 'postal', 'email', or 'phone'
+          mode, 
           userName: userProfile?.full_name || "A Concerned Citizen",
           userCity: userProfile?.address || "My District",
-          // Pass the REAL target rep details
           recipientName: selectedRep.name,
           recipientRole: selectedRep.role,
           recipientLevel: selectedRep.level
@@ -186,22 +194,17 @@ export default function ComposerPage() {
       article_id: article.id,
       content: generatedContent,
       status: 'draft',
-      recipient: selectedRep.name // Save the real name!
+      recipient: selectedRep.name 
     })
     router.push('/history')
   }
 
-  // Helper to extract a subject line from the generated letter body
   const getEmailSubject = () => {
     if (!generatedContent) return `Regarding: ${article?.title || 'Constituent Issue'}`
-    
-    // Look for lines starting with "Re:" or "Subject:" (case insensitive)
     const match = generatedContent.match(/^(?:re|subject):\s*(.*)$/im)
     if (match && match[1]) {
-      // Remove any trailing periods or whitespace
       return match[1].trim().replace(/\.$/, '')
     }
-    
     return `Regarding: ${article?.title || 'Constituent Issue'}`
   }
 
@@ -210,7 +213,7 @@ export default function ComposerPage() {
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
       
-      {/* HEADER - CLEANER */}
+      {/* HEADER */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="min-w-0">
@@ -227,10 +230,9 @@ export default function ComposerPage() {
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 max-w-7xl mx-auto w-full">
         
-        {/* LEFT COLUMN (Controls) */}
+        {/* LEFT COLUMN */}
         <div className="p-6 border-r border-gray-200 bg-white overflow-y-auto h-[calc(100vh-90px)]">
           
-          {/* MODE TOGGLE - 3 OPTIONS */}
           <div className="grid grid-cols-3 bg-gray-100 p-1 rounded-lg mb-8 gap-1">
             <button 
                 onClick={() => setMode('postal')} 
@@ -254,7 +256,7 @@ export default function ComposerPage() {
 
           <div className="space-y-8">
             
-            {/* 1. SELECT RECIPIENT - TWO COLUMN GRID */}
+            {/* SELECT RECIPIENT */}
             <section>
                 <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-bold uppercase tracking-wider text-gray-500">1. Select Recipient</label>
@@ -272,7 +274,6 @@ export default function ComposerPage() {
                                 : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                             }`}
                         >
-                            {/* Selection Indicator */}
                             {selectedRep?.id === r.id && (
                                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
                             )}
@@ -301,7 +302,7 @@ export default function ComposerPage() {
                 </div>
             </section>
 
-            {/* 2. SELECT STANCE */}
+            {/* STANCE */}
             <section>
               <label className="block text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">2. Your Stance</label>
               <div className="grid grid-cols-3 gap-3">
@@ -311,7 +312,7 @@ export default function ComposerPage() {
               </div>
             </section>
 
-            {/* 3. DEFINE ACTION */}
+            {/* ACTION */}
             <section>
               <label className="block text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">3. Desired Action</label>
               <select value={action} onChange={(e) => setAction(e.target.value)} className="w-full p-3 border rounded-lg bg-white text-sm font-medium">
@@ -323,7 +324,7 @@ export default function ComposerPage() {
               </select>
             </section>
 
-            {/* 4. PERSONAL CONTEXT */}
+            {/* CONTEXT */}
             <section>
               <label className="block text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
                 4. Personal Context <span className="text-gray-400 font-normal lowercase">(Optional)</span>
@@ -333,7 +334,6 @@ export default function ComposerPage() {
 
             <div className="pt-4 pb-12">
                 {!generatedContent ? (
-                // UPDATED GENERATE BUTTON WITH SPINNER
                 <button 
                     onClick={handleGenerate} 
                     disabled={generating} 
@@ -362,7 +362,6 @@ export default function ComposerPage() {
                             disabled={generating} 
                             className="bg-blue-600 text-white px-4 rounded font-bold text-sm hover:bg-blue-700 flex items-center gap-2"
                         >
-                            {/* MINI SPINNER FOR REFINE BUTTON */}
                             {generating && (
                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -413,7 +412,7 @@ export default function ComposerPage() {
              </div>
           )}
 
-          {/* MODE HELPER CARDS (Phone or Website or Email) - MOVED TO BOTTOM */}
+          {/* CONTACT INFO CARD */}
           {generatedContent && selectedRep && (
              <div className="max-w-2xl w-full mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
                 {mode === 'phone' && (
@@ -449,9 +448,7 @@ export default function ComposerPage() {
                         </div>
                         <div>
                             <p className="text-xs text-purple-800 font-bold uppercase tracking-wide mb-1">Digital Message</p>
-                            
                             {selectedRep.email ? (
-                                // EMAIL BUTTON
                                 <>
                                     <a 
                                         href={`mailto:${selectedRep.email}?subject=${encodeURIComponent(getEmailSubject())}&body=${encodeURIComponent(generatedContent || '')}`}
@@ -464,7 +461,6 @@ export default function ComposerPage() {
                                     <p className="text-xs text-purple-700 mt-1">Sends directly to {selectedRep.email}</p>
                                 </>
                             ) : (
-                                // WEBSITE FALLBACK
                                 <>
                                     {selectedRep.website && !selectedRep.website.includes('api.congress.gov') ? (
                                         <a href={selectedRep.website} target="_blank" className="text-lg font-bold text-purple-900 hover:underline block">

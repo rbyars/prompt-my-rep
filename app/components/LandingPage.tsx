@@ -25,7 +25,7 @@ export default function LandingPage() {
             Get Started for Free
           </Link>
           <Link 
-            href="https://chromewebstore.google.com" // Placeholder link
+            href="https://chromewebstore.google.com/detail/prompt-my-rep/coemcfcdomgidddhpjcdldkidgmcflic" 
             className="flex-1 bg-white text-gray-700 border border-gray-200 text-center py-4 rounded-xl font-bold text-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
           >
             Get the Extension
