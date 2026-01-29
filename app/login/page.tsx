@@ -15,6 +15,7 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  /* // --- GOOGLE LOGIN DISABLED ---
   const handleGoogleLogin = async () => {
     setLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
@@ -27,7 +28,8 @@ export default function LoginPage() {
         alert("Login failed: " + error.message)
         setLoading(false)
     }
-  }
+  } 
+  */
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,7 +61,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
         <p className="text-gray-500 mb-8">Sign in to manage your civic engagement.</p>
 
-        {/* Google Login */}
+        {/* --- GOOGLE BUTTON COMMENTED OUT ---
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
@@ -83,6 +85,7 @@ export default function LoginPage() {
             <span className="px-2 bg-white text-gray-500">Or continue with email</span>
           </div>
         </div>
+        -------------------------------------- */}
 
         {/* Magic Link Form */}
         {message ? (
