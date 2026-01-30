@@ -15,7 +15,10 @@ export default async function Home(props: { searchParams?: Promise<{ [key: strin
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) { return cookieStore.get(name)?.value },
+        // FIX: Use getAll() instead of get() to handle chunked session cookies correctly
+        getAll() {
+          return cookieStore.getAll()
+        },
       },
     }
   )
