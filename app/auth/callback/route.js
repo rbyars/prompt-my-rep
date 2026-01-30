@@ -9,6 +9,7 @@ export async function GET(request) {
   const next = searchParams.get('next') ?? '/'
 
   if (code) {
+    // In Next.js 15, cookies() is async
     const cookieStore = await cookies()
 
     const supabase = createServerClient(
