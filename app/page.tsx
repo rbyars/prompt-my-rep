@@ -60,9 +60,15 @@ export default async function Home(props: { searchParams?: Promise<{ [key: strin
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
             Install the Chrome Extension to save news articles while you browse the web.
           </p>
-          <button className="bg-gray-900 text-white px-6 py-2 rounded-lg font-bold text-sm">
+          {/* UPDATED: Link to Chrome Web Store */}
+          <a 
+            href="https://chromewebstore.google.com/detail/prompt-my-rep/coemcfcdomgidddhpjcdldkidgmcflic"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block bg-gray-900 text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-gray-800 transition-colors"
+          >
             Get Extension
-          </button>
+          </a>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
