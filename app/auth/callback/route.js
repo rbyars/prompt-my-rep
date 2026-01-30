@@ -3,12 +3,12 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function GET(request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/'
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+  // if "next" is in param, use it as the redirect URL
+  const next = searchParams.get('next') ?? '/'
 
   if (code) {
-    // FIX: In Next.js 15, we must await cookies()
     const cookieStore = await cookies()
 
     const supabase = createServerClient(
@@ -23,18 +23,22 @@ export async function GET(request) {
             cookieStore.set({ name, value, ...options })
           },
           remove(name, options) {
-            cookieStore.set({ name, value: '', ...options })
+            cookieStore.delete({ name, ...options })
           },
         },
       }
     )
     
+    // Exchange the code for a session
+    // This will fire the 'set' cookie method above
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      return NextResponse.redirect(`${requestUrl.origin}${next}`)
+      // Forward to the dashboard (or wherever 'next' points)
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  return NextResponse.redirect(`${requestUrl.origin}/auth/auth-code-error`)
+  // Return the user to an error page with instructions
+  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }

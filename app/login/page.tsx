@@ -15,28 +15,16 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  /* // --- GOOGLE LOGIN DISABLED ---
-  const handleGoogleLogin = async () => {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) {
-        alert("Login failed: " + error.message)
-        setLoading(false)
-    }
-  } 
-  */
-
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setMessage('') // Clear any old messages
+    
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        // ⚠️ This is the key line. It sends the user to your server-side route 
+        // to set the cookie before they see the dashboard.
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
@@ -45,6 +33,7 @@ export default function LoginPage() {
       alert(error.message)
     } else {
       setMessage('Check your email for the login link!')
+      setEmail('') // Clear the input for better UX
     }
     setLoading(false)
   }
@@ -61,36 +50,11 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome!</h1>
         <p className="text-gray-500 mb-8">Sign in to manage your civic engagement.</p>
 
-        {/* --- GOOGLE BUTTON COMMENTED OUT ---
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm mb-6"
-        >
-          {loading ? (
-            <span>Connecting...</span>
-          ) : (
-            <>
-              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-              Continue with Google
-            </>
-          )}
-        </button>
-
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with email</span>
-          </div>
-        </div>
-        -------------------------------------- */}
-
         {/* Magic Link Form */}
         {message ? (
-          <div className="p-4 bg-green-50 text-green-700 rounded-lg text-sm mb-4">
-            {message}
+          <div className="p-4 bg-green-50 text-green-700 rounded-lg text-sm mb-4 border border-green-100">
+            <p className="font-bold">Email sent!</p>
+            <p>{message}</p>
           </div>
         ) : (
           <form onSubmit={handleMagicLink} className="space-y-4">
@@ -99,20 +63,20 @@ export default function LoginPage() {
               placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
+              className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Sending Link...' : 'Send Login Link'}
             </button>
           </form>
         )}
 
-        {/* LEGAL DISCLAIMER (Clickwrap) */}
+        {/* LEGAL DISCLAIMER */}
         <p className="text-xs text-gray-400 text-center mt-6 px-4 leading-relaxed">
           By continuing, you agree to our 
           <a href="/terms" className="underline hover:text-gray-600 mx-1">Terms of Service</a> 
