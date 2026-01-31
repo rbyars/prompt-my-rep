@@ -3,7 +3,9 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import LandingPage from './components/LandingPage'
 
-// 🚨 THIS IS THE MISSING FIX: Force dynamic rendering to bypass the cache
+// 🚨 THIS IS THE MISSING FIX 🚨
+// This forces Next.js to run the logic below on every request, 
+// ensuring it actually checks for the user cookie.
 export const dynamic = 'force-dynamic'
 
 export default async function Home(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
