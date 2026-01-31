@@ -34,8 +34,21 @@ export async function GET(request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // SUCCESS: Redirect to dashboard
-      return NextResponse.redirect(`${origin}${next}`)
+      const forwardedHost = request.headers.get('x-forwarded-host') 
+      const isLocalEnv = process.env.NODE_ENV === 'development'
+      
+      // 1. Determine the base URL
+      let baseUrl = origin
+      if (!isLocalEnv && forwardedHost) {
+        baseUrl = `https://${forwardedHost}`
+      }
+
+      // 2. Add a random timestamp to FORCE the browser to refresh the page
+      // This breaks the Next.js Router Cache for this specific navigation
+      const refreshParam = `?t=${Date.now()}`
+      const finalUrl = `${baseUrl}${next}${next.includes('?') ? '&' : '?' }refresh=${Date.now()}`
+
+      return NextResponse.redirect(finalUrl)
     }
   }
 
