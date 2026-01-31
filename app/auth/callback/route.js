@@ -45,9 +45,9 @@ export async function GET(request) {
       const finalUrl = `${baseUrl}${next}${next.includes('?') ? '&' : '?' }refresh=${Date.now()}`
 
       // 🚨 THIS IS THE FIX 🚨
-      // Instead of NextResponse.redirect(), we return HTML with JS.
-      // This forces the browser to process the 'Set-Cookie' header 
-      // BEFORE it navigates to the dashboard.
+      // We return HTML with a meta refresh and JS redirect.
+      // This forces the browser to process the Set-Cookie header 
+      // BEFORE navigating to the dashboard.
       return new NextResponse(`
         <html>
           <head>
