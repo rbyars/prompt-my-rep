@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache' // 👈 Import this
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url)
@@ -37,21 +38,20 @@ export async function GET(request) {
       const forwardedHost = request.headers.get('x-forwarded-host') 
       const isLocalEnv = process.env.NODE_ENV === 'development'
       
-      // 1. Determine the base URL
       let baseUrl = origin
       if (!isLocalEnv && forwardedHost) {
         baseUrl = `https://${forwardedHost}`
       }
 
-      // 2. Add a random timestamp to FORCE the browser to refresh the page
-      // This breaks the Next.js Router Cache for this specific navigation
-      const refreshParam = `?t=${Date.now()}`
+      // 1. Force the Server Cache to clear for the home page
+      revalidatePath('/', 'layout') 
+
+      // 2. Redirect with a cache-busting timestamp for the Browser
       const finalUrl = `${baseUrl}${next}${next.includes('?') ? '&' : '?' }refresh=${Date.now()}`
 
       return NextResponse.redirect(finalUrl)
     }
   }
 
-  // ERROR: Redirect to error page
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }

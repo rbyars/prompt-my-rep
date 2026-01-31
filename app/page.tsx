@@ -3,6 +3,9 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import LandingPage from './components/LandingPage'
 
+// 🚨 FORCE DYNAMIC: Prevents Next.js from caching the "Logged Out" HTML
+export const dynamic = 'force-dynamic'
+
 // Accept searchParams prop
 export default async function Home(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const searchParams = await props.searchParams;
@@ -15,7 +18,6 @@ export default async function Home(props: { searchParams?: Promise<{ [key: strin
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        // 🚨 CRITICAL FIX: Changed from get() to getAll()
         getAll() {
           return cookieStore.getAll()
         },
