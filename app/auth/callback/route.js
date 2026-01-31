@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache' // 👈 Make sure this is imported
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url)
@@ -43,13 +42,26 @@ export async function GET(request) {
         baseUrl = `https://${forwardedHost}`
       }
 
-      // 1. Clear the server cache for the homepage
-      revalidatePath('/', 'layout') // 👈 Add this line
-
-      // 2. Redirect with cache buster
       const finalUrl = `${baseUrl}${next}${next.includes('?') ? '&' : '?' }refresh=${Date.now()}`
 
-      return NextResponse.redirect(finalUrl)
+      // 🚨 FIX: Return an HTML page that forces a client-side redirect.
+      // This ensures the browser processes the 'Set-Cookie' header 
+      // BEFORE it navigates to the new page.
+      return new NextResponse(`
+        <html>
+          <head>
+            <meta http-equiv="refresh" content="0;url=${finalUrl}" />
+          </head>
+          <body>
+            <p>Logging you in...</p>
+            <script>window.location.href = "${finalUrl}"</script>
+          </body>
+        </html>
+      `, {
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      })
     }
   }
 
