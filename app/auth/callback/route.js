@@ -44,16 +44,16 @@ export async function GET(request) {
 
       const finalUrl = `${baseUrl}${next}${next.includes('?') ? '&' : '?' }refresh=${Date.now()}`
 
-      // 🚨 FIX: Return an HTML page that forces a client-side redirect.
-      // This ensures the browser processes the 'Set-Cookie' header 
-      // BEFORE it navigates to the new page.
+      // 🚨 THIS IS THE FIX 🚨
+      // Instead of NextResponse.redirect(), we return HTML with JS.
+      // This forces the browser to process the 'Set-Cookie' header 
+      // BEFORE it navigates to the dashboard.
       return new NextResponse(`
         <html>
           <head>
             <meta http-equiv="refresh" content="0;url=${finalUrl}" />
           </head>
           <body>
-            <p>Logging you in...</p>
             <script>window.location.href = "${finalUrl}"</script>
           </body>
         </html>
