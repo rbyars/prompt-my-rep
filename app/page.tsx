@@ -3,10 +3,9 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import LandingPage from './components/LandingPage'
 
-// 🚨 FORCE DYNAMIC: Prevents Next.js from caching the "Logged Out" HTML
+// 🚨 THIS IS THE MISSING FIX: Force dynamic rendering to bypass the cache
 export const dynamic = 'force-dynamic'
 
-// Accept searchParams prop
 export default async function Home(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const searchParams = await props.searchParams;
   const repId = searchParams?.repId; 

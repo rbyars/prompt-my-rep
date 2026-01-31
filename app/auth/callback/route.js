@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache' // 👈 Import this
+import { revalidatePath } from 'next/cache' // 👈 Make sure this is imported
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url)
@@ -43,10 +43,10 @@ export async function GET(request) {
         baseUrl = `https://${forwardedHost}`
       }
 
-      // 1. Force the Server Cache to clear for the home page
-      revalidatePath('/', 'layout') 
+      // 1. Clear the server cache for the homepage
+      revalidatePath('/', 'layout') // 👈 Add this line
 
-      // 2. Redirect with a cache-busting timestamp for the Browser
+      // 2. Redirect with cache buster
       const finalUrl = `${baseUrl}${next}${next.includes('?') ? '&' : '?' }refresh=${Date.now()}`
 
       return NextResponse.redirect(finalUrl)
