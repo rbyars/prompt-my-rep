@@ -15,7 +15,7 @@ export default async function Home(props: { searchParams?: Promise<{ [key: strin
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        // FIX: Use getAll() instead of get() to handle chunked session cookies correctly
+        // 🚨 CRITICAL FIX: Changed from get() to getAll()
         getAll() {
           return cookieStore.getAll()
         },
